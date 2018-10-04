@@ -44,6 +44,7 @@ class App(QMainWindow):
         # Create a button in the window
         self.button = QPushButton('Scan', self)
         self.button.move(20, 90)
+        self.button.setAutoDefault(True)
 
         self.output = QTextEdit(self)
         self.output.setReadOnly(True)
