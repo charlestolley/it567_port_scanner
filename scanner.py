@@ -121,6 +121,7 @@ def scan_host(ip, ports, udp=False):
         if udp:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.IPPROTO_IP, IN.IP_RECVERR, 1)
+            sock.settimeout(.1)
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)
@@ -131,6 +132,10 @@ def scan_host(ip, ports, udp=False):
                 sock.sendto(b"", (ip, port))
             else:
                 sock.connect( (ip, port) )
+        except socket.timeout:
+            if not udp:
+                error = True
+                break
         except socket.error as e:
             if e.errno == 111:
                 continue
@@ -139,16 +144,16 @@ def scan_host(ip, ports, udp=False):
                 error = True
                 break
             raise
-        else:
-            if not printed:
-                if udp:
-                    print("Open (or filtered) UDP Ports:")
-                else:
-                    print("Open TCP Ports:")
-                printed = True
 
-            print("\t{}".format(port))
-            sock.close()
+        if not printed:
+            if udp:
+                print("Open (or filtered) UDP Ports:")
+            else:
+                print("Open TCP Ports:")
+            printed = True
+
+        print("\t{}".format(port))
+        sock.close()
 
     if not printed and not error:
         print ("No open {} ports found".format(protocol))
