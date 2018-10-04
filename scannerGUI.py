@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import sys
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QLabel, QTextEdit, QStatusBar
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QLabel, QTextEdit, QStatusBar, QRadioButton
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 
@@ -15,7 +15,7 @@ class App(QMainWindow):
         self.left = 10
         self.top = 10
         self.width = 400
-        self.height = 360
+        self.height = 400
         self.initUI()
  
     def initUI(self):
@@ -40,16 +40,23 @@ class App(QMainWindow):
         self.port_text.move(80, 50)
         self.port_text.resize(140, 20)
         self.port_text.returnPressed.connect(self.on_click)
+
+        self.tcp_button = QRadioButton("TCP", self)
+        self.tcp_button.move(20, 80)
+        self.tcp_button.setChecked(True)
+
+        self.udp_button = QRadioButton("UDP", self)
+        self.udp_button.move(80, 80)
  
         # Create a button in the window
         self.button = QPushButton('Scan', self)
-        self.button.move(20, 90)
+        self.button.move(20, 120)
         self.button.setAutoDefault(True)
 
         self.output = QTextEdit(self)
         self.output.setReadOnly(True)
-        self.output.move(20, 130)
-        self.output.resize(360, 200)
+        self.output.move(20, 160)
+        self.output.resize(360, 210)
  
         # connect button to function on_click
         self.button.clicked.connect(self.on_click)
@@ -72,10 +79,15 @@ class App(QMainWindow):
             self.statusBar.showMessage(str(e))
             return
 
+        self.output.setText("")
         for host in hosts:
-            self.output.append("Host {}:".format(host))
-            for port in scan_host(host, ports):
+            udp = self.udp_button.isChecked()
+            protocol = "UDP" if udp else "TCP"
+            self.output.append("Host {} ({}):".format(host, protocol))
+            for port in scan_host(host, ports, udp=udp):
                 self.output.append(str(port))
+
+        self.output.append("Done")
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)

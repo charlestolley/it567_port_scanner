@@ -8,6 +8,7 @@
 #   allow different ways of specifying hosts    (5 points)
 #   allow multiple ports                        (10 points)
 #   both UDP and TCP                            (10 points)
+#   GUI                                         (10 points)
 
 import IN
 import getopt
