@@ -1,8 +1,12 @@
 # use -h flag for usage
 # Capabilities:
-#   specify host and port   (40 points)
-#   allow multiple ports    (10 points)
+#   specify host and port                       (40 points)
+#   read range of hosts from command line       (5 points)
+#   allow different ways of specifying hosts    (5 points)
+#   allow multiple ports                        (10 points)
+#   both UDP and TCP                            (10 points)
 
+import IN
 import getopt
 import re
 import socket
@@ -18,11 +22,15 @@ Usage: python {} [OPTION]...
 OPTIONS
 \t-h
 \t\tprint this help message and exit
-\t-H=HOST
-\t\tHOST must be a single IPv4 address
+\t-H=HOSTS
+\t\tHOSTS is a comma separated list of either single IPs, or ranges of IPs (IPv4 only)
+\t\tRanges may be in CIDR notation, or as hyphen-separated IP's
+\t\t\tFor example: 192.168.0.0-192.168.0.3,192.168.0.5,192.168.0.128/27
 \t-p=PORTS
 \t\tPORTS is a comma separated list of either single port numbers or ranges of ports
-\t\t\tFor example: 1,3,7,18-22,53,80-500""".format(sys.argv[0])
+\t\t\tFor example: 1,3,7,18-22,53,80-500
+\t-u
+\t\tperform UDP scan (default is TCP)""".format(sys.argv[0])
 
 def is_ip(string):
     return bool(re.match(cidr_regex, string))
@@ -85,7 +93,10 @@ def port_list(string):
             if start >= end:
                 raise ValueError("Invalid range: {}".format(segment))
             ports = ports.union(range(start, end+1))
+
+    ports.discard(0)
     ports = sorted(ports)
+
     if ports[0] < 0:
         raise ValueError("Invalid port number: {}".format(ports[0]))
     elif ports[-1] > 0xffff:
@@ -95,28 +106,49 @@ def port_list(string):
 
 # ip = IPv4 address
 # ports = iterable of integers
-def scan_host(ip, ports):
+def scan_host(ip, ports, udp=False):
+    protocol = "UDP" if udp else "TCP"
+
     print("Host: {}".format(ip))
     printed = False
+    error = False
+
     for port in ports:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(10)
+        if udp:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.IPPROTO_IP, IN.IP_RECVERR, 1)
+        else:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+
         try:
-            sock.connect( (ip, port) )
+            if udp:
+                sock.sendto("", (ip, port))
+                sock.sendto("", (ip, port))
+            else:
+                sock.connect( (ip, port) )
         except socket.error as e:
             if e.errno == 111:
                 continue
             else:
                 print(str(e))
+                error = True
                 break
             raise
         else:
             if not printed:
-                print("Open TCP Ports:")
+                if udp:
+                    print("Open (or filtered) UDP Ports:")
+                else:
+                    print("Open TCP Ports:")
                 printed = True
 
             print("\t{}".format(port))
             sock.close()
+
+    if not printed and not error:
+        print ("No open {} ports found".format(protocol))
+
     print("")
 
 def usage():
@@ -124,14 +156,15 @@ def usage():
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "H:hp:", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "H:hp:u", ["help"])
     except getopt.GetoptError as err:
         print(str(err))
         usage()
         sys.exit(1)
 
     hosts = ["127.0.0.1"]
-    ports = range(1024)
+    ports = range(1, 1024)
+    udp = False
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -145,6 +178,8 @@ if __name__ == '__main__':
             except ValueError as e:
                 print(e.message)
                 sys.exit(1)
+        elif o == "-u":
+            udp = True
 
     for host in hosts:
-        scan_host(host, ports)
+        scan_host(host, ports, udp=udp)
