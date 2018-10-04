@@ -1,6 +1,9 @@
+# written in Python 2 on Ubuntu
+
 # use -h flag for usage
 # Capabilities:
 #   specify host and port                       (40 points)
+#   allow multiple hosts to be scanned          (10 points)
 #   read range of hosts from command line       (5 points)
 #   allow different ways of specifying hosts    (5 points)
 #   allow multiple ports                        (10 points)
@@ -32,15 +35,15 @@ OPTIONS
 \t-u
 \t\tperform UDP scan (default is TCP)""".format(sys.argv[0])
 
-def is_ip(string):
-    return bool(re.match(cidr_regex, string))
-
+# encodes IPv4 address to 32-bit integer
 def int_to_ip(num):
     return socket.inet_ntoa(struct.pack("!I", num))
 
+# decodes 32-bit integer to IPv4 address
 def ip_to_int(ip):
     return struct.unpack("!I", socket.inet_aton(ip))[0]
 
+# decode command line format for multiple hosts
 def host_list(string):
     segments = string.split(",")
     hosts = set()
@@ -82,6 +85,7 @@ def host_list(string):
 
     return sorted(hosts, key=socket.inet_aton)
 
+# decode command line format for multiple ports
 def port_list(string):
     segments = string.split(",")
     ports = set()
@@ -123,8 +127,8 @@ def scan_host(ip, ports, udp=False):
 
         try:
             if udp:
-                sock.sendto("", (ip, port))
-                sock.sendto("", (ip, port))
+                sock.sendto(b"", (ip, port))
+                sock.sendto(b"", (ip, port))
             else:
                 sock.connect( (ip, port) )
         except socket.error as e:
