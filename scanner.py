@@ -121,7 +121,7 @@ def scan_host(ip, ports, udp=False):
         if udp:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.IPPROTO_IP, IN.IP_RECVERR, 1)
-            sock.settimeout(.1)
+            sock.settimeout(.5)
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)
@@ -129,7 +129,7 @@ def scan_host(ip, ports, udp=False):
         try:
             if udp:
                 sock.sendto(b"", (ip, port))
-                sock.sendto(b"", (ip, port))
+                sock.recv(1)
             else:
                 sock.connect( (ip, port) )
         except socket.timeout:
