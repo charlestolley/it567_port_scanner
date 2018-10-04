@@ -97,14 +97,17 @@ def port_list(string):
             if start >= end:
                 raise ValueError("Invalid range: {}".format(segment))
             ports = ports.union(range(start, end+1))
+        else:
+            raise ValueError("Invalid port: {}".format(segment))
 
     ports.discard(0)
     ports = sorted(ports)
 
-    if ports[0] < 0:
-        raise ValueError("Invalid port number: {}".format(ports[0]))
-    elif ports[-1] > 0xffff:
-        raise ValueError("Invalid port number: {}".format(ports[-1]))
+    if ports:
+        if ports[0] < 0:
+            raise ValueError("Invalid port number: {}".format(ports[0]))
+        elif ports[-1] > 0xffff:
+            raise ValueError("Invalid port number: {}".format(ports[-1]))
 
     return ports
 
@@ -112,10 +115,6 @@ def port_list(string):
 # ports = iterable of integers
 def scan_host(ip, ports, udp=False):
     protocol = "UDP" if udp else "TCP"
-
-    print("Host: {}".format(ip))
-    printed = False
-    error = False
 
     for port in ports:
         if udp:
@@ -134,31 +133,19 @@ def scan_host(ip, ports, udp=False):
                 sock.connect( (ip, port) )
         except socket.timeout:
             if not udp:
-                error = True
                 break
         except socket.error as e:
             if e.errno == 111:
                 continue
             else:
-                print(str(e))
-                error = True
+                sys.stderr.write(str(e))
+                sys.stderr.write('\n')
+                sys.stderr.flush()
                 break
             raise
 
-        if not printed:
-            if udp:
-                print("Open (or filtered) UDP Ports:")
-            else:
-                print("Open TCP Ports:")
-            printed = True
-
-        print("\t{}".format(port))
+        yield port
         sock.close()
-
-    if not printed and not error:
-        print ("No open {} ports found".format(protocol))
-
-    print("")
 
 def usage():
     print(usage_string)
@@ -190,5 +177,19 @@ if __name__ == '__main__':
         elif o == "-u":
             udp = True
 
+    printed = False
     for host in hosts:
-        scan_host(host, ports, udp=udp)
+        print("Host {}:".format(host))
+        for port in scan_host(host, ports, udp=udp):
+            if not printed:
+                if udp:
+                    print("Open (or filtered) UDP Ports:")
+                else:
+                    print("Open TCP Ports:")
+                printed = True
+            print("\t{}".format(port))
+
+        if not printed:
+            print ("No open {} ports found".format(protocol))
+
+        print("")
