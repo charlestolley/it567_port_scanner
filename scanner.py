@@ -58,7 +58,7 @@ def host_list(string):
                 mask = ((1 << masklen) - 1) << (32 - masklen)
 
                 network = ip_to_int(host) & mask
-                for addr in xrange(network, network + (1 << (32 - masklen))):
+                for addr in range(network, network + (1 << (32 - masklen))):
                     hosts.add(int_to_ip(addr))
             else:
                 hosts.add(host)
@@ -81,7 +81,7 @@ def host_list(string):
             if start >= end:
                 raise ValueError("Invalid IP range: '{}'".format(segment))
 
-            for addr in xrange(start, end+1):
+            for addr in range(start, end+1):
                 hosts.add(int_to_ip(addr))
 
     return sorted(hosts, key=socket.inet_aton)
@@ -115,8 +115,6 @@ def port_list(string):
 # ip = IPv4 address
 # ports = iterable of integers
 def scan_host(ip, ports, udp=False):
-    protocol = "UDP" if udp else "TCP"
-
     for port in ports:
         if udp:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -124,7 +122,7 @@ def scan_host(ip, ports, udp=False):
             sock.settimeout(.5)
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(10)
+            sock.settimeout(5)
 
         try:
             if udp:
@@ -134,15 +132,10 @@ def scan_host(ip, ports, udp=False):
                 sock.connect( (ip, port) )
         except socket.timeout:
             if not udp:
-                break
+                raise
         except socket.error as e:
             if e.errno == 111:
                 continue
-            else:
-                sys.stderr.write(str(e))
-                sys.stderr.write('\n')
-                sys.stderr.flush()
-                break
             raise
 
         yield port
@@ -178,19 +171,25 @@ if __name__ == '__main__':
         elif o == "-u":
             udp = True
 
-    printed = False
     for host in hosts:
+        printed = False
+        error = False
+        protocol = "UDP" if udp else "TCP"
         print("Host {}:".format(host))
-        for port in scan_host(host, ports, udp=udp):
-            if not printed:
-                if udp:
-                    print("Open (or filtered) UDP Ports:")
-                else:
-                    print("Open TCP Ports:")
-                printed = True
-            print("\t{}".format(port))
+        try:
+            for port in scan_host(host, ports, udp=udp):
+                if not printed:
+                    if udp:
+                        print("Open (or filtered) UDP Ports:")
+                    else:
+                        print("Open TCP Ports:")
+                    printed = True
+                print("\t{}".format(port))
+        except socket.error as e:
+            print(str(e))
+            error = True
 
-        if not printed:
+        if not printed and not error:
             print ("No open {} ports found".format(protocol))
 
         print("")

@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
+import socket
 import sys
+
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QLabel, QTextEdit, QStatusBar, QRadioButton
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
@@ -31,7 +33,6 @@ class App(QMainWindow):
         self.host_text = QLineEdit(self)
         self.host_text.move(80, 20)
         self.host_text.resize(140,20)
-        self.host_text.returnPressed.connect(self.on_click)
 
         self.port_label = QLabel("Ports:", self)
         self.port_label.move(20, 44)
@@ -39,7 +40,6 @@ class App(QMainWindow):
         self.port_text = QLineEdit(self)
         self.port_text.move(80, 50)
         self.port_text.resize(140, 20)
-        self.port_text.returnPressed.connect(self.on_click)
 
         self.tcp_button = QRadioButton("TCP", self)
         self.tcp_button.move(20, 80)
@@ -60,16 +60,24 @@ class App(QMainWindow):
  
         # connect button to function on_click
         self.button.clicked.connect(self.on_click)
+        self.button.pressed.connect(self.on_pressed)
         self.show()
+
+    @pyqtSlot()
+    def on_pressed(self):
+        self.button.setEnabled(False)
+        self.output.clear()
  
     @pyqtSlot()
     def on_click(self):
         if not self.host_text.text():
             self.statusBar.showMessage("No hosts specified")
+            self.button.setEnabled(True)
             return
 
         if not self.port_text.text():
             self.statusBar.showMessage("No ports specified")
+            self.button.setEnabled(True)
             return
 
         try:
@@ -77,17 +85,25 @@ class App(QMainWindow):
             ports = port_list(self.port_text.text())
         except ValueError as e:
             self.statusBar.showMessage(str(e))
+            self.button.setEnabled(True)
             return
 
-        self.output.setText("")
+        self.statusBar.showMessage("Scanning...")
         for host in hosts:
             udp = self.udp_button.isChecked()
             protocol = "UDP" if udp else "TCP"
             self.output.append("Host {} ({}):".format(host, protocol))
-            for port in scan_host(host, ports, udp=udp):
-                self.output.append(str(port))
+            try:
+                for port in scan_host(host, ports, udp=udp):
+                    self.output.append(str(port))
+            except socket.error as e:
+                self.output.append(str(e))
 
+            self.output.append("")
+
+        self.statusBar.clearMessage()
         self.output.append("Done")
+        self.button.setEnabled(True)
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
